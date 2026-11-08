@@ -1,111 +1,55 @@
-name: Build
+name: build-android
 
-on: [push, pull_request]
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
 
 jobs:
-  build-linux-i386:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 350
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Build linux-i386
-      run: |
-        scripts/build-ubuntu-i386.sh
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
 
-  build-linux-amd64:
-    runs-on: ubuntu-20.04
+      - name: Install base tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python-is-python3 pkg-config zip unzip wget libtinfo5
 
-    steps:
-    - uses: actions/checkout@v2
-    - name: Build linux-amd64
-      run: |
-        scripts/build-ubuntu-amd64.sh
+      - name: Install Clang 11
+        run: |
+          wget -q https://github.com/llvm/llvm-project/releases/download/llvmorg-11.1.0/clang+llvm-11.1.0-x86_64-linux-gnu-ubuntu-16.04.tar.xz
+          tar -xf clang+llvm-11.1.0-x86_64-linux-gnu-ubuntu-16.04.tar.xz
+          echo "$PWD/clang+llvm-11.1.0-x86_64-linux-gnu-ubuntu-16.04/bin" >> $GITHUB_PATH
 
-  build-android-armv7a:
-    runs-on: ubuntu-20.04
+      - name: Install NDK r10e
+        run: |
+          wget -q https://dl.google.com/android/repository/android-ndk-r10e-linux-x86_64.zip
+          unzip -q android-ndk-r10e-linux-x86_64.zip
+          echo "ANDROID_NDK_HOME=$PWD/android-ndk-r10e" >> $GITHUB_ENV
 
-    steps:
-    - uses: actions/checkout@v2
-    - name: Build android-armv7a
-      run: |
-        scripts/build-android-armv7a.sh
+      - name: Configure arm64
+        run: |
+          chmod +x waf
+          ./waf configure -T release --togles --android=aarch64,host,21 -8
 
-  build-windows-i386:
-    runs-on: windows-2019
+      - name: Build arm64
+        run: ./waf build -j4
 
-    steps:
-    - uses: actions/checkout@v2
-    - name: Build windows-i386
-      run: |
-        git submodule init && git submodule update
-        ./waf.bat configure -T debug --32bits
-        ./waf.bat build
+      - name: Collect artifacts
+        run: |
+          mkdir -p out
+          find . -name "*.so" -exec cp --parents {} out/ \;
 
-  build-windows-amd64:
-    runs-on: windows-2019
-
-    steps:
-    - uses: actions/checkout@v2
-    - name: Build windows-amd64
-      run: |
-        git submodule init && git submodule update
-        ./waf.bat configure -T debug
-        ./waf.bat build
-
-  build-dedicated-windows-i386:
-    runs-on: windows-2019
-
-    steps:
-    - uses: actions/checkout@v2
-    - name: Build dedicated windows-i386
-      run: |
-        git submodule init && git submodule update
-        ./waf.bat configure -T debug -d
-        ./waf.bat build
-
-  build-dedicated-windows-amd64:
-    runs-on: windows-2019
-
-    steps:
-    - uses: actions/checkout@v2
-    - name: Build dedicated windows-amd64
-      run: |
-        git submodule init && git submodule update
-        ./waf.bat configure -T debug -d
-        ./waf.bat build
-
-  build-dedicated-linux-i386:
-    runs-on: ubuntu-20.04
-
-    steps:
-    - uses: actions/checkout@v2
-    - name: Build dedicated linux-i386
-      run: |
-        scripts/build-ubuntu-i386.sh -d
-
-  build-dedicated-linux-amd64:
-    runs-on: ubuntu-20.04
-
-    steps:
-    - uses: actions/checkout@v2
-    - name: Build dedicated linux-amd64
-      run: |
-        scripts/build-ubuntu-amd64.sh -d
-
-  build-macos-amd64:
-    runs-on: macos-latest
-
-    steps:
-    - uses: actions/checkout@v2
-    - name: Build macos-amd64
-      run: |
-        scripts/build-macos-amd64.sh
-
-  build-dedicated-macos-amd64:
-    runs-on: macos-latest
-
-    steps:
-    - uses: actions/checkout@v2
-    - name: Build dedicated macos-amd64
-      run: |
-        scripts/build-macos-amd64.sh -d
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-engine-arm64
+          path: out/
+          if-no-files-found: warn
