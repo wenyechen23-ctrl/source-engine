@@ -1,0 +1,26 @@
+#!/bin/bash
+set -e
+ENG=${ENG:-../eng}
+SDK=${ANDROID_HOME:-/usr/lib/android-sdk}
+BT=$(ls -d $SDK/build-tools/* | sort -V | tail -1)
+AJ=$(ls $SDK/platforms/android-*/android.jar | sort -V | tail -1)
+mkdir -p libs/arm64-v8a
+if [ -d $ENG/build ]; then find $ENG/build -name '*.so' -print0 | xargs -0 -I{} cp -f {} libs/arm64-v8a/; fi
+if [ -f $ENG/lib/out/lib/android/aarch64/libSDL2.so ]; then cp -f $ENG/lib/out/lib/android/aarch64/libSDL2.so libs/arm64-v8a/; fi
+for f in libs/arm64-v8a/*.so; do strip --strip-unneeded $f || true; done
+ls -la libs/arm64-v8a
+rm -rf build
+mkdir -p build/gen build/classes
+$BT/aapt2 compile --dir res -o build/res.zip
+$BT/aapt2 link -o build/base.apk -I $AJ --manifest AndroidManifest.xml -R build/res.zip --java build/gen --auto-add-overlay -A assets
+javac -nowarn -source 8 -target 8 -encoding UTF-8 -classpath $AJ -d build/classes $(find src build/gen -name '*.java')
+cd build/classes
+jar cf ../classes.jar .
+cd ../..
+$BT/d8 --release --lib $AJ --output build build/classes.jar
+python3 -c "import zipfile,glob,os;zin=zipfile.ZipFile('build/base.apk');zout=zipfile.ZipFile('build/unsigned.apk','w',zipfile.ZIP_DEFLATED);[zout.writestr(it, zin.read(it.filename)) for it in zin.infolist()];zout.write('build/classes.dex','classes.dex');[zout.write(f,'lib/arm64-v8a/'+os.path.basename(f),compress_type=zipfile.ZIP_STORED) for f in glob.glob('libs/arm64-v8a/*.so')];zout.close()"
+keytool -genkeypair -keystore build/k.jks -alias k -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname CN=mod || true
+$BT/zipalign -f -p 4 build/unsigned.apk build/aligned.apk
+$BT/apksigner sign --ks build/k.jks --ks-pass pass:android --key-pass pass:android --out srceng-gmod.apk build/aligned.apk
+$BT/apksigner verify srceng-gmod.apk
+ls -lh srceng-gmod.apk
