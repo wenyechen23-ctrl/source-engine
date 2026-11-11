@@ -16,8 +16,7 @@ jobs:
           fetch-depth: 1
       - name: Install base tools
         run: |
-          sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 update || true
-          sudo apt-get -y -o Acquire::Retries=5 install pkg-config libtinfo5 || true
+          sudo ln -sf /lib/x86_64-linux-gnu/libtinfo.so.6 /usr/lib/x86_64-linux-gnu/libtinfo.so.5 || true
           ccache -M 2G || true
           ccache -z || true
       - name: Restore ccache
