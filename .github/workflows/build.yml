@@ -9,47 +9,47 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     timeout-minutes: 350
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 1
-
       - name: Install base tools
         run: |
-        sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 update || true
-        sudo apt-get -y -o Acquire::Retries=5 install pkg-config libtinfo5 || true
-
+          sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 update || true
+          sudo apt-get -y -o Acquire::Retries=5 install pkg-config libtinfo5 || true
+          ccache -M 2G || true
+          ccache -z || true
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ github.sha }}
+          restore-keys: ccache-
       - name: Install Clang 11
         run: |
           wget -q https://github.com/llvm/llvm-project/releases/download/llvmorg-11.1.0/clang+llvm-11.1.0-x86_64-linux-gnu-ubuntu-16.04.tar.xz
           tar -xf clang+llvm-11.1.0-x86_64-linux-gnu-ubuntu-16.04.tar.xz
           echo "$PWD/clang+llvm-11.1.0-x86_64-linux-gnu-ubuntu-16.04/bin" >> $GITHUB_PATH
-
       - name: Install NDK r10e
         run: |
           wget -q https://dl.google.com/android/repository/android-ndk-r10e-linux-x86_64.zip
           unzip -q android-ndk-r10e-linux-x86_64.zip
           echo "ANDROID_NDK_HOME=$PWD/android-ndk-r10e" >> $GITHUB_ENV
-
       - name: Configure arm64
         run: |
           chmod +x waf
-          ./waf configure -T release --togles --android=aarch64,host,21
-
+          ./waf configure -T release --togles --android=aarch64,host,21 --use-ccache
       - name: Build arm64
         run: ./waf build -j4
-
-      - name: Collect artifacts
+      - name: Collect
         run: |
-          mkdir -p out
-          find . -name "*.so" -exec cp --parents {} out/ \;
-
-      - name: Upload artifacts
+          mkdir -p dist
+          cp -r build dist/build
+          cp -r out/lib dist/lib 2>/dev/null || true
+          find dist -name "*.so" -exec strip --strip-unneeded {} \; 2>/dev/null || true
+      - name: Upload engine
         uses: actions/upload-artifact@v4
         with:
           name: source-engine-arm64
-          path: out/
-          if-no-files-found: warn
+          path: dist/
