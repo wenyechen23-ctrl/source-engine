@@ -689,15 +689,17 @@ void CInput::MouseMove( CUserCmd *cmd )
 	}
 
 	// Store out the new viewangles.
-		// ===== gyro start =====
+			// ===== gyro start =====
 	static ConVar gyro_enable( "gyro_enable", "1", FCVAR_ARCHIVE, "gyro aim on/off" );
 	static ConVar gyro_sensitivity( "gyro_sensitivity", "1.0", FCVAR_ARCHIVE, "gyro sensitivity" );
 	static ConVar gyro_invert( "gyro_invert", "0", FCVAR_ARCHIVE, "invert pitch" );
-	static int s_gyroSensor = -1;
+	static SDL_Sensor *s_gyroSensor = NULL;
+	static bool s_gyroTried = false;
 	if ( gyro_enable.GetInt() && gpGlobals->frametime > 0.0f )
 	{
-		if ( s_gyroSensor == -1 && !vgui::surface()->IsCursorVisible() )
+		if ( !s_gyroTried && !vgui::surface()->IsCursorVisible() )
 		{
+			s_gyroTried = true;
 			if ( SDL_InitSubSystem( SDL_INIT_SENSOR ) == 0 )
 			{
 				int n = SDL_NumSensors();
@@ -710,9 +712,8 @@ void CInput::MouseMove( CUserCmd *cmd )
 					}
 				}
 			}
-			if ( s_gyroSensor < 0 ) s_gyroSensor = -2;
 		}
-		if ( s_gyroSensor >= 0 )
+		if ( s_gyroSensor != NULL )
 		{
 			float d[3] = { 0, 0, 0 };
 			if ( SDL_SensorGetData( s_gyroSensor, d, 3 ) == 0 )
