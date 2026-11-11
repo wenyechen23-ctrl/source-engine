@@ -10,6 +10,8 @@
 #define _WIN32_WINNT 0x0502
 #include <windows.h>
 #endif
+#include <SDL.h>
+#include <SDL_sensor.h>
 #include "cbase.h"
 #include "hud.h"
 #include "cdll_int.h"
@@ -694,19 +696,14 @@ void CInput::MouseMove( CUserCmd *cmd )
 	static int s_gyroSensor = -1;
 	if ( gyro_enable.GetInt() && gpGlobals->frametime > 0.0f )
 	{
-		extern "C" int SDL_InitSubSystem( unsigned int );
-		extern "C" int SDL_NumSensors( void );
-		extern "C" int SDL_SensorGetDeviceType( int );
-		extern "C" int SDL_SensorOpen( int );
-		extern "C" int SDL_SensorGetData( int, float *, int );
 		if ( s_gyroSensor == -1 && !vgui::surface()->IsCursorVisible() )
 		{
-			if ( SDL_InitSubSystem( 0x00008000 ) == 0 )
+			if ( SDL_InitSubSystem( SDL_INIT_SENSOR ) == 0 )
 			{
 				int n = SDL_NumSensors();
 				for ( int i = 0; i < n; i++ )
 				{
-					if ( SDL_SensorGetDeviceType( i ) == 2 )
+					if ( SDL_SensorGetDeviceType( i ) == SDL_SENSOR_GYRO )
 					{
 						s_gyroSensor = SDL_SensorOpen( i );
 						break;
