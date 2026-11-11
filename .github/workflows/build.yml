@@ -19,8 +19,8 @@ jobs:
 
       - name: Install base tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y python3 python-is-python3 pkg-config zip unzip wget libtinfo5
+        sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 update || true
+        sudo apt-get -y -o Acquire::Retries=5 install pkg-config libtinfo5 || true
 
       - name: Install Clang 11
         run: |
