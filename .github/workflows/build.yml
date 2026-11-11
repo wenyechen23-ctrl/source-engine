@@ -40,7 +40,19 @@ jobs:
           chmod +x waf
           ./waf configure -T release --togles --android=aarch64,host,21
       - name: Build arm64
-        run: ./waf build -j4
+        run: |
+          set +e
+          ./waf build -j4 > build.log 2>&1
+          RC=$?
+          grep -n -i "error:" build.log | head -30
+          tail -n 40 build.log
+          exit $RC
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
       - name: Collect
         run: |
           mkdir -p dist
