@@ -1078,5 +1078,6 @@ void DumpMemorySummary( void )
 
 // Turn off memdbg macros (turned on up top) since this is included like a header
 #include "tier0/memdbgoff.h"
-
+// VR crash hook stub (for GDroid togl compatibility)
+extern "C" __attribute__((visibility("default"))) void VRCrash_RefreshModules( void ) {}
 
