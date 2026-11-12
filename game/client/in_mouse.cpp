@@ -10,8 +10,9 @@
 #define _WIN32_WINNT 0x0502
 #include <windows.h>
 #endif
-#include <SDL.h>
-#include <SDL_sensor.h>
+#include <android/sensor.h>
+#include <android/looper.h>
+#include <dlfcn.h>
 #include "cbase.h"
 #include "hud.h"
 #include "cdll_int.h"
