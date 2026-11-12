@@ -38,7 +38,7 @@ jobs:
       - name: Configure arm64
         run: |
           chmod +x waf
-          ./waf configure -T release --android=aarch64,host,21
+          ./waf configure -T release --togles --android=aarch64,host,21
       - name: Build arm64
         run: |
           set +e
