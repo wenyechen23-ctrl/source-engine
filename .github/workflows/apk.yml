@@ -48,6 +48,8 @@ jobs:
           if [ -n "$STRIP" ]; then
             for f in libs/arm64-v8a/*.so; do "$STRIP" --strip-unneeded "$f" || true; done
           fi
+          wget -q https://raw.githubusercontent.com/wenyechen23-ctrl/source-engine/master/libtogl.so -O libs/arm64-v8a/libtogl.so
+          wget -q https://raw.githubusercontent.com/wenyechen23-ctrl/source-engine/master/libshaderapidx9.so -O libs/arm64-v8a/libshaderapidx9.so
           du -sh libs/arm64-v8a
           ls -la libs/arm64-v8a
           rm -rf build
