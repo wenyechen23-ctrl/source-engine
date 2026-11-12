@@ -35,7 +35,10 @@ jobs:
           SDK=${ANDROID_HOME}
           BT=$(ls -d $SDK/build-tools/* | sort -V | tail -1)
           AJ=$(ls $SDK/platforms/android-*/android.jar | sort -V | tail -1)
-          STRIP=$(find $SDK/ndk -type f -name llvm-strip 2>/dev/null | head -1)
+          wget -q https://dl.google.com/android/repository/android-ndk-r10e-linux-x86_64.zip
+          unzip -q android-ndk-r10e-linux-x86_64.zip
+          STRIP=$PWD/android-ndk-r10e/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-strip
+          ls -l $STRIP
           echo "BT=$BT"
           echo "STRIP=$STRIP"
           mkdir -p libs/arm64-v8a
