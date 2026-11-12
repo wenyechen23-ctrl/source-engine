@@ -690,38 +690,53 @@ void CInput::MouseMove( CUserCmd *cmd )
 	}
 
 	// Store out the new viewangles.
-			// ===== gyro start =====
+		// ===== gyro start =====
 	static ConVar gyro_enable( "gyro_enable", "1", FCVAR_ARCHIVE, "gyro aim on/off" );
 	static ConVar gyro_sensitivity( "gyro_sensitivity", "1.0", FCVAR_ARCHIVE, "gyro sensitivity" );
 	static ConVar gyro_invert( "gyro_invert", "0", FCVAR_ARCHIVE, "invert pitch" );
-	static SDL_Sensor *s_gyroSensor = NULL;
+	static void *s_asMgr = NULL;
+	static void *s_asSensor = NULL;
+	static ASensorEventQueue *s_gyroQueue = NULL;
+	static int (*s_fnGetEvents)( ASensorEventQueue *, ASensorEvent *, size_t ) = NULL;
 	static bool s_gyroTried = false;
 	if ( gyro_enable.GetInt() && gpGlobals->frametime > 0.0f )
 	{
 		if ( !s_gyroTried && !vgui::surface()->IsCursorVisible() )
 		{
 			s_gyroTried = true;
-			if ( SDL_InitSubSystem( SDL_INIT_SENSOR ) == 0 )
+			void *hnd = dlopen( "libandroid.so", RTLD_NOW );
+			if ( hnd )
 			{
-				int n = SDL_NumSensors();
-				for ( int i = 0; i < n; i++ )
+				void *(*pGetMgr)(void) = (void *(*)(void))dlsym( hnd, "ASensorManager_getInstance" );
+				void *(*pGetDefault)(void *, int) = (void *(*)(void *, int))dlsym( hnd, "ASensorManager_getDefaultSensor" );
+				void *(*pCreateQueue)(void *, ALooper *, int, void *, void *) = (void *(*)(void *, ALooper *, int, void *, void *))dlsym( hnd, "ASensorManager_createEventQueue" );
+				int (*pEnable)(void *, void *) = (int (*)(void *, void *))dlsym( hnd, "ASensorEventQueue_enableSensor" );
+				ALooper *(*pForThread)(void) = (ALooper *(*)(void))dlsym( hnd, "ALooper_forThread" );
+				s_fnGetEvents = (int (*)( ASensorEventQueue *, ASensorEvent *, size_t ))dlsym( hnd, "ASensorEventQueue_getEvents" );
+				if ( pGetMgr && pGetDefault && pCreateQueue && pEnable && pForThread && s_fnGetEvents )
 				{
-					if ( SDL_SensorGetDeviceType( i ) == SDL_SENSOR_GYRO )
+					s_asMgr = pGetMgr();
+					if ( s_asMgr ) s_asSensor = pGetDefault( s_asMgr, ASENSOR_TYPE_GYROSCOPE );
+					ALooper *lp = pForThread();
+					if ( s_asSensor && lp )
 					{
-						s_gyroSensor = SDL_SensorOpen( i );
-						break;
+						s_gyroQueue = (ASensorEventQueue *)pCreateQueue( s_asMgr, lp, 0, NULL, NULL );
+						if ( s_gyroQueue ) pEnable( s_gyroQueue, s_asSensor );
 					}
 				}
 			}
 		}
-		if ( s_gyroSensor != NULL )
+		if ( s_gyroQueue != NULL && s_fnGetEvents != NULL )
 		{
-			float d[3] = { 0, 0, 0 };
-			if ( SDL_SensorGetData( s_gyroSensor, d, 3 ) == 0 )
+			ASensorEvent ev;
+			bool got = false;
+			while ( s_fnGetEvents( s_gyroQueue, &ev, 1 ) > 0 )
+				got = true;
+			if ( got )
 			{
 				float k = 57.29578f * gpGlobals->frametime * gyro_sensitivity.GetFloat();
-				viewangles[YAW]   -= d[0] * k;
-				viewangles[PITCH] -= d[1] * k * ( gyro_invert.GetInt() ? -1.0f : 1.0f );
+				viewangles[YAW]   -= ev.data[0] * k;
+				viewangles[PITCH] -= ev.data[1] * k * ( gyro_invert.GetInt() ? -1.0f : 1.0f );
 				if ( viewangles[PITCH] > 89.0f )  viewangles[PITCH] = 89.0f;
 				if ( viewangles[PITCH] < -89.0f ) viewangles[PITCH] = -89.0f;
 			}
