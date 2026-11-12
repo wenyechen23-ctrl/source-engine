@@ -43,9 +43,8 @@ jobs:
           echo "STRIP=$STRIP"
           mkdir -p libs/arm64-v8a
           find ../eng/build -name '*.so' -print0 | xargs -0 -I{} cp -f {} libs/arm64-v8a/
-          for p in ../eng/out/lib/android/aarch64/libSDL2.so lib/android/aarch64/libSDL2.so; do
-            if [ -f "$p" ]; then cp -f "$p" libs/arm64-v8a/ && echo "SDL2 from $p" && break; fi
-          done
+          wget -q https://raw.githubusercontent.com/wenyechen23-ctrl/source-engine/master/libSDL2.so -O libs/arm64-v8a/libSDL2.so
+          ls -l libs/arm64-v8a/libSDL2.so
           if [ -n "$STRIP" ]; then
             for f in libs/arm64-v8a/*.so; do "$STRIP" --strip-unneeded "$f" || true; done
           fi
